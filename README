@@ -1,0 +1,1 @@
+This script allows users to send queries to Literature Online in a programatic fashion. Looping over an input file, it sends queries to Literature Online. If a given search yields hits, the script saves the search string as well as pertinent metadata related to the matching text(s), including author name, book title, and publication date.
