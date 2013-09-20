@@ -61,7 +61,7 @@ driver.get(str(logintoliteratureonline))
 username = driver.find_element_by_name("username")
 username.send_keys("dduhaime")
 password = driver.find_element_by_name("password")
-password.send_keys("Nolimet@ng3r3")
+password.send_keys("password")
 password.send_keys(Keys.RETURN)
 
 ################################
