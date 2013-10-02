@@ -21,7 +21,7 @@ from PIL import Image
 #create TK frame
 root = Tk()
 #identify the dimensions of the TK frame
-root.geometry("360x150")
+root.geometry("300x195")
 #title the TK frame
 root.title("Literature Online API")
 
@@ -40,27 +40,39 @@ firstlinelabel.grid(row = 0, column = 0, sticky = W)
 
 #create a button that allows users to employ Literature Online's fuzzy spelling feature. Add the object.grid() method on new line because appending .grid() to the line in which one defines object causes Python to give the object attribute "NoneType." http://stackoverflow.com/questions/1101750/python-tkinter-attributeerror-nonetype-object-has-no-attribute-get
 fuzzyspellingbutton = Checkbutton(root, text="Fuzzy Spelling", variable=fuzzyspellingvariable)
-fuzzyspellingbutton.grid(row = 1, column = 0, sticky = W)
+fuzzyspellingbutton.grid(row = 3, column = 0, sticky = W)
 
 #create a button that allows users to employ Literature Online's lemmatized search feature
 lemmatizedsearchbutton = Checkbutton(root, text="Lemmatized Search", variable=lemmatizedsearchvariable)
-lemmatizedsearchbutton.grid(row = 2, column = 0, sticky = W)
+lemmatizedsearchbutton.grid(row = 4, column = 0, sticky = W)
 
 #create a spinbox that allows users to identify desired window length
-windowlengthspinbox = Spinbox(root, from_=1, to=10)
-windowlengthspinbox.grid(row = 3, column = 1, sticky = W)
+windowlengthspinbox = Spinbox(root, from_=1, to=10, width = "9")
+windowlengthspinbox.grid(row = 1, column = 1, sticky = W)
 windowlengthspinboxlabel = Label(root, text = "Please select window size")
-windowlengthspinboxlabel.grid(row = 3, column = 0, sticky = W)
+windowlengthspinboxlabel.grid(row = 1, column = 0, sticky = W)
 
 #create a spinbox that allows users to identify desired window length
-slideintervalspinbox = Spinbox(root, from_=1, to=10)
-slideintervalspinbox.grid(row = 4, column = 1, sticky = W)
+slideintervalspinbox = Spinbox(root, from_=1, to=10, width = "9")
+slideintervalspinbox.grid(row = 2, column = 1, sticky = W)
 slideintervalspinboxlabel =  Label(root, text = "Please select window slide interval")
-slideintervalspinboxlabel.grid(row = 4, column = 0, sticky = W)
+slideintervalspinboxlabel.grid(row = 2, column = 0, sticky = W)
+
+#create an entry box that allows users to specify a date range for desired matching publications
+publicationdaterange = Entry(root, width = "9")
+publicationdaterange.grid(row = 5, column = 1, sticky = W)
+publicationdaterangelabel = Label(root, text = "Publication Date Range:")
+publicationdaterangelabel.grid(row=5, column = 0, sticky = W)
+
+#create an entry box that allows users to specify date range for author
+authordaterange = Entry(root, width = "9")
+authordaterange.grid(row = 6, column = 1, sticky = W)
+authordaterangelabel = Label(root, text = "Author Date Range:")
+authordaterangelabel.grid(row=6, column = 0, sticky = W)
 
 #create a button that allows users to find a file for analysis    
 selectfilebutton = Button(root,text="Select File",command=selectfile)
-selectfilebutton.grid(row = 5, column = 0, sticky = W)
+selectfilebutton.grid(row = 7, column = 0, sticky = W)
 
 ##########################################
 # Define Query Literature Online Process #
@@ -81,13 +93,13 @@ def startapi(event = "<Button>"):
     literatureonlinetexts = 'http://lion.chadwyck.com.proxy.library.nd.edu/gotoSearchTexts.do?initialise=true'
     
     #default value for variant spelling is off. To turn on the variant spelling option, change the following value to 1
-    if fuzzyspellingvariable.get() == "1": 
+    if fuzzyspellingvariable.get() == 1: 
         variantspelling = 1
     else:
         variantspelling = 0
     
     #default value for lemmatization is also off. To turn that feature on, change the following value to 1
-    if lemmatizedsearchvariable.get() == "1":
+    if lemmatizedsearchvariable.get() == 1:
         lemmas = 1
     else:
         lemmas = 0
@@ -95,10 +107,31 @@ def startapi(event = "<Button>"):
     #identify path to the text you would like to compare to the Literature Online database texts
     pathtotarget = user_defined_filepath['filename']
     
+    #create binary switches for publication date range and author date range. Set default to off. If user provides these strings via the GUI, we'll change the value of these variables to 1 (or on) later in the script
+    publicationdatesprovided = 0
+    authordatesprovided = 0
+    
+    #check to see if user provided dates for publication range. If so, store those dates in memory
+    if publicationdaterange.get() != "":
+        publicationdatestosearch = publicationdaterange.get().split("-")
+        publicationdatestosearchone = publicationdatestosearch[0]
+        publicationdatestosearchtwo = publicationdatestosearch[1]
+        publicationdatesprovided = 1
+    else:
+        pass
+        
+    #check to see if user provided dates for author range. If so, store those dates in memory    
+    if authordaterange.get() != "":
+        authordatestosearch = authordaterange.get().split("-")
+        authordatestosearchone = authordatestosearch[0]
+        authordatestosearchtwo = authordatestosearch[1]
+        authordatesprovided = 1
+    else:
+        pass
+    
     #create parameters for the window we'll use to slide over the target text. If targetwindowstart = 0 and targetwindowend = 3, the script will establish a sliding
     #window that's three words long, and slide that window over the text (at an increment equal to the value of targetslideinterval), searching for exact matches
     #and then collocate matches for each window of n words (where n = targetwindowend - targetwindowstart).
-    
     targetwindowstart = 0
     targetwindowend = 0 + int(windowlengthspinbox.get())
     targetslideinterval = int(slideintervalspinbox.get())
@@ -153,7 +186,7 @@ def startapi(event = "<Button>"):
     username = driver.find_element_by_name("username")
     username.send_keys("dduhaime")
     password = driver.find_element_by_name("password")
-    password.send_keys("************")
+    password.send_keys("*************")
     password.send_keys(Keys.RETURN)
     
     ################################
@@ -181,17 +214,42 @@ def startapi(event = "<Button>"):
         
         #now take the search terms and query Literature Online
         driver.get(str(literatureonlinetexts))
-        
+                
         #if user desires variant spelling, click appropriate box
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
         
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
+            
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
         elem.send_keys(str(exactmatchsearchterms))
@@ -296,6 +354,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -347,7 +406,6 @@ def startapi(event = "<Button>"):
     targetwindowend = defaulttargetwindowend
     
     for looppass in range(timestoloop):
-        print "started looppass"
         targetwindow = splittarget[targetwindowstart:targetwindowend]
         searchterms = " ".join(targetwindow)
         exactmatchsearchterms = "'" + str(searchterms) + "'"
@@ -363,11 +421,36 @@ def startapi(event = "<Button>"):
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
+        
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
         
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
@@ -473,6 +556,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -523,7 +607,6 @@ def startapi(event = "<Button>"):
     targetwindowend = defaulttargetwindowend
     
     for looppass in range(timestoloop):
-        print "started looppass"
         targetwindow = splittarget[targetwindowstart:targetwindowend]
         searchterms = " ".join(targetwindow)
         exactmatchsearchterms = "'" + str(searchterms) + "'"
@@ -539,11 +622,36 @@ def startapi(event = "<Button>"):
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
+        
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
             
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
@@ -649,6 +757,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -702,7 +811,6 @@ def startapi(event = "<Button>"):
     
     #each time through the loop, grab the words currently within the target window, and search for those terms on Literature Online
     for looppass in range(timestoloop):
-        print "started looppass"
         targetwindow = splittarget[targetwindowstart:targetwindowend]
         searchterms = " ".join(targetwindow)
         splitsearchterms = searchterms.split(" ")
@@ -715,11 +823,36 @@ def startapi(event = "<Button>"):
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
+        
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
         
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
@@ -825,6 +958,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -875,7 +1009,6 @@ def startapi(event = "<Button>"):
     targetwindowend = defaulttargetwindowend
     
     for looppass in range(timestoloop):
-        print "started looppass"
         targetwindow = splittarget[targetwindowstart:targetwindowend]
         searchterms = " ".join(targetwindow)
         splitsearchterms = searchterms.split(" ")
@@ -892,11 +1025,36 @@ def startapi(event = "<Button>"):
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
+        
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
         
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
@@ -1002,6 +1160,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -1068,11 +1227,36 @@ def startapi(event = "<Button>"):
         if variantspelling == 1:
             findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
             findalternativespelling.click()
+        else:
+            pass
             
         #if user desires lemmas, click appropriate box
         if lemmas == 1:
-            findlemmmas = driver.find_element_by_id("Lemmas")
+            findlemmas = driver.find_element_by_id("Lemmas")
             findlemmas.click()
+        else:
+            pass
+        
+        #if user desires to limit results to a certain publication period, populate the appropriate fields
+        if publicationdatesprovided == 1:
+            providepublicationdateone = driver.find_element_by_id("PubDate1")
+            providepublicationdateone.clear()
+            providepublicationdateone.send_keys(str(publicationdatestosearchone))
+            providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+            providepublicationdatetwo.clear()
+            providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
+        else:
+            pass
+        
+        if authordatesprovided == 1:
+            provideauthordatesone = driver.find_element_by_id("LiveDate1")
+            provideauthordatesone.clear()
+            provideauthordatesone.send_keys(str(authordatestosearchone))
+            provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+            provideauthordatestwo.clear()
+            provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+        else:
+            pass
             
         #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
         elem = driver.find_element_by_id("Keyword")
@@ -1178,6 +1362,7 @@ def startapi(event = "<Button>"):
                 #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                 if '<a href="/searchCom.do?' in htmlauthor:
                     
+                    driver.implicitly_wait(20)
                     linktoclick = driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                     #add one to currentlinktoclick counter, so we won't click the same link twice
                     currentlinktoclick = currentlinktoclick + 1
@@ -1230,8 +1415,8 @@ def startapi(event = "<Button>"):
 ###############################
 
 #create a start button that allows users to submit selected parameters and run the "startapi" processes
-startbutton = Button(root, text="Start", command = startapi, width = 8)
-startbutton.grid(row = 5, column = 1, sticky = E)
+startbutton = Button(root, text="Start", command = startapi, width = 7)
+startbutton.grid(row = 7, column = 1, sticky = W)
 startbutton.bind("<Button>", startapi)
 #startbutton.focus()
 
