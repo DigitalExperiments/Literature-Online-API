@@ -12,6 +12,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 
 #import packages for the Tkinter interface
 from Tkinter import *
@@ -25,7 +26,7 @@ from PIL import Image
 #create TK frame
 root = Tk()
 #identify the dimensions of the TK frame
-root.geometry("315x305")
+root.geometry("315x340")
 #title the TK frame
 root.title("Literature Online API")
 
@@ -113,9 +114,19 @@ slideintervalspinboxlabel.grid(row = 10, column = 0, sticky = W)
 emptylabelfour = Label(root, text = "")
 emptylabelfour.grid(row = 11, column = 0, sticky = W)
 
+#create a text entry box that allows users to limit search by author
+limitsearchbyauthorlabel = Label(root, text = "Limit matches by author(s):")
+limitsearchbyauthorlabel.grid(row = 13, column = 0, sticky = W)
+limitsearchbyauthor = Entry(root, width = 18)
+limitsearchbyauthor.grid(row = 13, column = 1, sticky = W)
+
+#create empty line
+emptylabelfive = Label(root, text = "")
+emptylabelfive.grid(row = 14, column = 0, sticky = W)
+
 #create a button that allows users to find a file for analysis    
 selectfilebutton = Button(root,text="Select File",command=selectfile)
-selectfilebutton.grid(row = 12, column = 0, sticky = W)
+selectfilebutton.grid(row = 15, column = 0, sticky = W)
 
 ##########################################
 # Define Query Literature Online Process #
@@ -173,6 +184,12 @@ def startapi(event = "<Button>"):
         prosevalue = 1
     else:
         prosevalue = 0
+
+    if limitsearchbyauthor.get() != "":
+        limitsearchtermsbyauthorunsplit = limitsearchbyauthor.get()
+        authorlimitsprovided = 1
+    else:
+        authorlimitsprovided = 0
     
     #identify path to the text you would like to compare to the Literature Online database texts
     pathtotarget = user_defined_filepath['filename']
@@ -305,45 +322,70 @@ def startapi(event = "<Button>"):
                 
                 #now take the search terms and query Literature Online
                 driver.get(str(literatureonlinetexts))
+                driver.implicitly_wait(10)
                         
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
+                    driver.implicitly_wait(10)
                 else:
                     pass
                     
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
+                    driver.implicitly_wait(10)
                 else:
                     pass
                 
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
                 else:
                     pass
-                    
+                
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
+                else:
+                    pass
+                       
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(exactmatchsearchterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
             
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -449,11 +491,16 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutException:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -469,11 +516,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -498,14 +554,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
                                       
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -514,7 +579,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -547,14 +612,19 @@ def startapi(event = "<Button>"):
                 
                 #now take the search terms and query Literature Online
                 driver.get(str(literatureonlinetexts))
+                driver.implicitly_wait(10)
                 clearsearches = driver.find_element_by_partial_link_text('TEXTS')
+                driver.implicitly_wait(10)
                 clearsearches.click()
+                driver.implicitly_wait(10)
                 dramaresults = driver.find_element_by_partial_link_text('Drama')
+                driver.implicitly_wait(10)
                 dramaresults.click()
                 
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
                 else:
                     pass
@@ -562,6 +632,7 @@ def startapi(event = "<Button>"):
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
                 else:
                     pass
@@ -569,27 +640,47 @@ def startapi(event = "<Button>"):
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+                else:
+                    pass
+                
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
                 else:
                     pass
                 
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(exactmatchsearchterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
             
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -696,11 +787,17 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutError:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -716,11 +813,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -745,14 +851,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
                                       
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -761,7 +876,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -794,14 +909,19 @@ def startapi(event = "<Button>"):
                 
                 #now take the search terms and query Literature Online
                 driver.get("http://lion.chadwyck.com.proxy.library.nd.edu/gotoSearchTexts.do")
+                driver.implicitly_wait(10)
                 clearsearches = driver.find_element_by_partial_link_text('TEXTS')
+                driver.implicitly_wait(10)
                 clearsearches.click()
+                driver.implicitly_wait(10)
                 dramaresults = driver.find_element_by_partial_link_text('Prose')
+                driver.implicitly_wait(10)
                 dramaresults.click()
                 
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
                 else:
                     pass
@@ -809,6 +929,7 @@ def startapi(event = "<Button>"):
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
                 else:
                     pass
@@ -816,27 +937,47 @@ def startapi(event = "<Button>"):
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
                 else:
                     pass
                     
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
+                else:
+                    pass
+                
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(exactmatchsearchterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
                 
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -943,11 +1084,16 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutError:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -963,11 +1109,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -992,14 +1147,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
                                       
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(searchterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -1008,7 +1172,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -1047,10 +1211,12 @@ def startapi(event = "<Button>"):
             
                 #now take the search terms and query Literature Online
                 driver.get("http://lion.chadwyck.com.proxy.library.nd.edu/gotoSearchTexts.do?initialise=true")
+                driver.implicitly_wait(10)
                 
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
                 else:
                     pass
@@ -1058,6 +1224,7 @@ def startapi(event = "<Button>"):
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
                 else:
                     pass
@@ -1065,27 +1232,47 @@ def startapi(event = "<Button>"):
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+                else:
+                    pass
+                
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
                 else:
                     pass
                 
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(collocateterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
             
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -1192,11 +1379,16 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutError:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -1212,11 +1404,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -1241,14 +1442,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
                                       
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -1257,7 +1467,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -1291,14 +1501,19 @@ def startapi(event = "<Button>"):
                 
                 #now take the search terms and query Literature Online
                 driver.get("http://lion.chadwyck.com.proxy.library.nd.edu/gotoSearchTexts.do")
+                driver.implicitly_wait(10)
                 clearsearches = driver.find_element_by_partial_link_text('TEXTS')
+                driver.implicitly_wait(10)
                 clearsearches.click()
+                driver.implicitly_wait(10)
                 dramaresults = driver.find_element_by_partial_link_text('Drama')
+                driver.implicitly_wait(10)
                 dramaresults.click()
                 
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
                 else:
                     pass
@@ -1306,6 +1521,7 @@ def startapi(event = "<Button>"):
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
                 else:
                     pass
@@ -1313,27 +1529,47 @@ def startapi(event = "<Button>"):
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
+                else:
+                    pass
+                
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
                 else:
                     pass
                 
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(collocateterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
             
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -1439,11 +1675,16 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutError:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -1459,11 +1700,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -1488,14 +1738,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
                                       
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -1504,7 +1763,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -1538,14 +1797,19 @@ def startapi(event = "<Button>"):
                 
                 #now take the search terms and query Literature Online
                 driver.get("http://lion.chadwyck.com.proxy.library.nd.edu/gotoSearchTexts.do")
+                driver.implicitly_wait(10)
                 clearsearches = driver.find_element_by_partial_link_text('TEXTS')
+                driver.implicitly_wait(10)
                 clearsearches.click()
+                driver.implicitly_wait(10)
                 dramaresults = driver.find_element_by_partial_link_text('Prose')
+                driver.implicitly_wait(10)
                 dramaresults.click()
                 
                 #if user desires variant spelling, click appropriate box
                 if variantspelling == 1:
                     findalternativespelling = driver.find_element_by_id("SPELLING_VARIANTS")
+                    driver.implicitly_wait(10)
                     findalternativespelling.click()
                 else:
                     pass
@@ -1553,6 +1817,7 @@ def startapi(event = "<Button>"):
                 #if user desires lemmas, click appropriate box
                 if lemmas == 1:
                     findlemmas = driver.find_element_by_id("Lemmas")
+                    driver.implicitly_wait(10)
                     findlemmas.click()
                 else:
                     pass
@@ -1560,27 +1825,47 @@ def startapi(event = "<Button>"):
                 #if user desires to limit results to a certain publication period, populate the appropriate fields
                 if publicationdatesprovided == 1:
                     providepublicationdateone = driver.find_element_by_id("PubDate1")
+                    driver.implicitly_wait(10)
                     providepublicationdateone.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdateone.send_keys(str(publicationdatestosearchone))
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo = driver.find_element_by_id("PubDate2")
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.clear()
+                    driver.implicitly_wait(10)
                     providepublicationdatetwo.send_keys(str(publicationdatestosearchtwo))
                 else:
                     pass
                 
                 if authordatesprovided == 1:
                     provideauthordatesone = driver.find_element_by_id("LiveDate1")
+                    driver.implicitly_wait(10)
                     provideauthordatesone.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatesone.send_keys(str(authordatestosearchone))
+                    driver.implicitly_wait(10)
                     provideauthordatestwo = driver.find_element_by_id("LiveDate2")
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.clear()
+                    driver.implicitly_wait(10)
                     provideauthordatestwo.send_keys(str(authordatestosearchtwo))
                 else:
                     pass
                     
+                #if user desires to limit search by authors, submit those author names
+                if authorlimitsprovided == 1:
+                    searchbyauthor = driver.find_element_by_id("Author")
+                    driver.implicitly_wait(10)
+                    searchbyauthor.send_keys(str(limitsearchtermsbyauthorunsplit))
+                else:
+                    pass
+                
                 #the next line finds the line "<input type="text" class="input-text" name="q" id="q" />" and identify the element by its id, "q"
                 elem = driver.find_element_by_id("Keyword")
+                driver.implicitly_wait(10)
                 elem.send_keys(str(collocateterms))
+                driver.implicitly_wait(10)
                 elem.send_keys(Keys.RETURN)
                 
                 #instantiate another loop to run through for each page of the results--default = 1 loop through
@@ -1686,11 +1971,16 @@ def startapi(event = "<Button>"):
                         #check to see if there are more than eight hits in text. If there are, click the link to find all hits
                         if '<a href="/searchCom.do?' in htmlauthor:
                             
-                            WebDriverWait(driver, 30).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
-                            driver.implicitly_wait(30)
+                            try:
+                                WebDriverWait(driver, 60).until(expected_conditions.presence_of_element_located((By.LINK_TEXT, 'View all hits in this text')))
+                                driver.implicitly_wait(30)
+                            
+                            except TimeoutError:
+                                pass
                             
                             #try to get the next hit. If you get a list index error, note that you missed one hit.
                             try:
+                                driver.implicitly_wait(30)
                                 driver.find_elements_by_link_text('View all hits in this text')[currentlinktoclick].click()
                             
                                 #add one to currentlinktoclick counter, so we won't click the same link twice
@@ -1706,11 +1996,20 @@ def startapi(event = "<Button>"):
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                     cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                     #write search criteria and metadata to out file
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
-                                #switch back to main page
-                                driver.implicitly_wait(10)
-                                driver.find_element_by_link_text('Back to results').click()
+                                #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                #'sorry, we could not complete your request', then click back on browser
+                                try:
+                                    driver.implicitly_wait(10)
+                                    backtoresults = driver.find_element_by_link_text('Back to results')
+                                    driver.implicitly_wait(10)
+                                    backtoresults.click()
+                                
+                                except NoSuchElementException:
+                                    out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                    driver.implicitly_wait(10)
+                                    driver.back()
                                 
                             except IndexError:
                                 
@@ -1735,14 +2034,23 @@ def startapi(event = "<Button>"):
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                         cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                         #write search criteria and metadata to out file
-                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                        out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
-                                    #switch back to main page
-                                    driver.implicitly_wait(10)
-                                    driver.find_element_by_link_text('Back to results').click()
-                                      
+                                    #try to switch back to main page, but if there is no "back" button, i.e. if you have been sent to a page that says
+                                    #'sorry, we could not complete your request', then click back on browser
+                                    try:
+                                        driver.implicitly_wait(10)
+                                        backtoresults = driver.find_element_by_link_text('Back to results')
+                                        driver.implicitly_wait(10)
+                                        backtoresults.click()
+                                    
+                                    except NoSuchElementException:
+                                        out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "PLEASE NOTE: THERE WERE MORE THAN EIGHT MATCHES FOR THE SEARCH TERMS '" + str(searchterms)  + "IN THIS TEXT, BUT THE LINK TO THOSE ADDITIONAL MATCHES WAS BROKEN AT THE TIME THIS SEARCH WAS EXECUTED" + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
+                                        driver.implicitly_wait(10)
+                                        driver.back()
+                                    
                                 except IndexError:
-                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                    out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + "COULD NOT RETRIEVE ADDITIONAL MATCHING STRINGS WITHIN THIS TEXT CONTAINING THE SEARCH TERMS: " + str(collocateterms)  + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                    
                         else:
                             listofhitsincontext = htmlauthor.split('<dt class="textDT">...')
@@ -1751,7 +2059,7 @@ def startapi(event = "<Button>"):
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
                                 cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
                                 #write search criteria and metadata to out file
-                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\t" + "\n")
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
                     #now wait a moment and then look to see if there are additional hits on other pages
                     driver.implicitly_wait(10)
@@ -1779,7 +2087,7 @@ def startapi(event = "<Button>"):
 
 #create a start button that allows users to submit selected parameters and run the "startapi" processes
 startbutton = Button(root, text="Start", command = startapi, width = 7)
-startbutton.grid(row = 12, column = 1, sticky = W)
+startbutton.grid(row = 15, column = 1, sticky = W)
 startbutton.bind("<Button>", startapi)
 #startbutton.focus()
 
