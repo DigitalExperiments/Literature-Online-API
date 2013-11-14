@@ -26,7 +26,7 @@ from PIL import Image
 #create TK frame
 root = Tk()
 #identify the dimensions of the TK frame
-root.geometry("315x340")
+root.geometry("315x445")
 #title the TK frame
 root.title("Literature Online API")
 
@@ -114,19 +114,47 @@ slideintervalspinboxlabel.grid(row = 10, column = 0, sticky = W)
 emptylabelfour = Label(root, text = "")
 emptylabelfour.grid(row = 11, column = 0, sticky = W)
 
-#create a text entry box that allows users to limit search by author
-limitsearchbyauthorlabel = Label(root, text = "Limit matches by author(s):")
-limitsearchbyauthorlabel.grid(row = 13, column = 0, sticky = W)
-limitsearchbyauthor = Entry(root, width = 18)
-limitsearchbyauthor.grid(row = 13, column = 1, sticky = W)
+#create text entry box that allows users to establish a ceiling value for entries value, such that if a given series of words yields,
+#yields a greater number of entries, the script will identify that the given string has more than the ceiling value number of hits.
+#(This feature prevents the script from spending an hour finding all million matching strings for common phrases)
+entriesceilingvalue = Entry(root, width = 9)
+entriesceilingvalue.grid(row = 12, column = 1, sticky = W)
+entriesceilingvaluelabel = Label(root, text = "Ceiling value for 'entries' count:")
+entriesceilingvaluelabel.grid(row = 12, column = 0, sticky = W)
+
+#create text entry box that allows users to establish ceiling value for hits value
+hitsceilingvalue = Entry(root, width = 9)
+hitsceilingvalue.grid(row = 13, column = 1, sticky = W)
+hitsceilingvaluelabel = Label(root, text = "Ceiling value for 'hits' count:")
+hitsceilingvaluelabel.grid(row = 13, column = 0, sticky = W)
 
 #create empty line
 emptylabelfive = Label(root, text = "")
 emptylabelfive.grid(row = 14, column = 0, sticky = W)
 
+#create a text entry box that allows users to limit search by author
+limitsearchbyauthor = Entry(root, width = 18)
+limitsearchbyauthor.grid(row = 15, column = 1, sticky = W)
+limitsearchbyauthorlabel = Label(root, text = "Limit matches by author(s):")
+limitsearchbyauthorlabel.grid(row = 15, column = 0, sticky = W)
+
+#create empty line
+emptylabelsix = Label(root, text = "")
+emptylabelsix.grid(row = 16, column = 0, sticky = W)
+
+#create a text entry box that allows users to limit search by first performance date
+performancerange = Entry(root, width = 18)
+performancerange.grid(row=17, column = 1, sticky = W)
+performancerangelabel = Label(root, text = "First performance date range:")
+performancerangelabel.grid(row = 17, column = 0, sticky = W)
+
+#create empty line
+emptylabelseven = Label(root, text = "")
+emptylabelseven.grid(row = 18, column = 0, sticky = W)
+
 #create a button that allows users to find a file for analysis    
 selectfilebutton = Button(root,text="Select File",command=selectfile)
-selectfilebutton.grid(row = 15, column = 0, sticky = W)
+selectfilebutton.grid(row = 19, column = 0, sticky = W)
 
 ##########################################
 # Define Query Literature Online Process #
@@ -180,7 +208,7 @@ def startapi(event = "<Button>"):
     else:
         dramavalue = 0
         
-    if prosevariable.get() ==1:
+    if prosevariable.get() == 1:
         prosevalue = 1
     else:
         prosevalue = 0
@@ -191,12 +219,25 @@ def startapi(event = "<Button>"):
     else:
         authorlimitsprovided = 0
     
+    if entriesceilingvalue.get() != "":
+        desiredentriesceiling = entriesceilingvalue.get()
+        entriesceilingvalueprovided = 1
+    else:
+        entriesceilingvalueprovided = 0
+        
+    if hitsceilingvalue.get() != "":
+        desiredhitsceiling = hitsceilingvalue.get()
+        hitsceilingvalueprovided = 1
+    else:
+        hitsceilingvalueprovided = 0
+    
     #identify path to the text you would like to compare to the Literature Online database texts
     pathtotarget = user_defined_filepath['filename']
     
     #create binary switches for publication date range and author date range. Set default to off. If user provides these strings via the GUI, we'll change the value of these variables to 1 (or on) later in the script
     publicationdatesprovided = 0
     authordatesprovided = 0
+    performancerangeprovided = 0
     
     #check to see if user provided dates for publication range. If so, store those dates in memory
     if publicationdaterange.get() != "":
@@ -213,6 +254,15 @@ def startapi(event = "<Button>"):
         authordatestosearchone = authordatestosearch[0]
         authordatestosearchtwo = authordatestosearch[1]
         authordatesprovided = 1
+    else:
+        pass
+    
+    #check to see if user provided dates for first performance date. If so, store those dates in memory
+    if performancerange.get() != "":
+        performancerangevalues = performancerange.get().split("-")
+        performancerangevaluesone = performancerangevalues[0]
+        performancerangevaluestwo = performancerangevalues[1]
+        performancerangeprovided = 1
     else:
         pass
     
@@ -273,7 +323,7 @@ def startapi(event = "<Button>"):
     username = driver.find_element_by_name("username")
     username.send_keys("dduhaime")
     password = driver.find_element_by_name("password")
-    password.send_keys("*************")
+    password.send_keys("**********")
     password.send_keys(Keys.RETURN)
     
     ################################
@@ -417,6 +467,59 @@ def startapi(event = "<Button>"):
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
                     
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                            
                     #############################
                     # Find Metadata For Matches #
                     #############################
@@ -514,7 +617,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -552,7 +655,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -577,7 +680,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -668,6 +771,22 @@ def startapi(event = "<Button>"):
                 else:
                     pass
                 
+                #if user desires to limit search by performance date, submit those dates
+                if performancerangeprovided == 1:
+                    provideperformancedateone = driver.find_element_by_id("PerfDate1")
+                    driver.implicitly_wait(10)
+                    provideperformancedateone.clear()
+                    driver.implicitly_wait(10)
+                    provideperformancedateone.send_keys(str(performancerangevaluesone))
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo = driver.find_element_by_id("PerfDate2")
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo.clear()
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo.send_keys(str(performancerangevaluestwo))
+                else:
+                    pass
+                
                 #if user desires to limit search by authors, submit those author names
                 if authorlimitsprovided == 1:
                     searchbyauthor = driver.find_element_by_id("Author")
@@ -712,6 +831,59 @@ def startapi(event = "<Button>"):
                         continue
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
+                    
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
                     
                     #############################
                     # Find Metadata For Matches #
@@ -811,7 +983,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -849,7 +1021,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -874,7 +1046,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -1010,6 +1182,59 @@ def startapi(event = "<Button>"):
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
                     
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                    
                     #############################
                     # Find Metadata For Matches #
                     #############################
@@ -1107,7 +1332,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -1145,7 +1370,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -1170,7 +1395,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(searchterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -1305,6 +1530,59 @@ def startapi(event = "<Button>"):
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
                     
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(searchterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                    
                     #############################
                     # Find Metadata For Matches #
                     #############################
@@ -1402,7 +1680,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -1440,7 +1718,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -1465,7 +1743,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -1557,6 +1835,20 @@ def startapi(event = "<Button>"):
                 else:
                     pass
                 
+                #if user desires to limit search by performance date, submit those dates
+                if performancerangeprovided == 1:
+                    provideperformancedateone = driver.find_element_by_id("PerfDate1")
+                    driver.implicitly_wait(10)
+                    provideperformancedateone.clear()
+                    driver.implicitly_wait(10)
+                    provideperformancedateone.send_keys(str(performancerangevaluesone))
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo = driver.find_element_by_id("PerfDate2")
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo.clear()
+                    driver.implicitly_wait(10)
+                    provideperformancedatetwo.send_keys(str(performancerangevaluestwo))
+                
                 #if user desires to limit search by authors, submit those author names
                 if authorlimitsprovided == 1:
                     searchbyauthor = driver.find_element_by_id("Author")
@@ -1600,6 +1892,59 @@ def startapi(event = "<Button>"):
                         continue
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
+                    
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
                     
                     #############################
                     # Find Metadata For Matches #
@@ -1698,7 +2043,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -1736,7 +2081,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -1761,7 +2106,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -1897,6 +2242,59 @@ def startapi(event = "<Button>"):
                         
                     htmlauthorlist = cleanhtml.split('<input type="checkbox"')
                     
+                    ########################
+                    # Check Ceiling Values #
+                    ########################
+                    
+                    #now, check to see whether user has provided ceiling values for number of entries
+                    if entriesceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #we're always interested in the jazz that comes right after <div class="hits">, but if there are no hits at all, that string won't appear in the html.
+                        #so check to make sure that the length of splitceling html is > 1:
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            
+                            #cast these little cellos as integers so that python won't get confused
+                            htmlentriesvalue = int(htmlentriesvalue)
+                            desiredentriesceiling = int(desiredentriesceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlentriesvalue > desiredentriesceiling:
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlentriesvalue) + " ENTRIES, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredentriesceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                        
+                    #now, check to see whether user had provided ceiling values for number of hits
+                    if hitsceilingvalueprovided == 1:
+                        #if they have, check to make sure that the number of matching entries is <= the ceiling value
+                        ceilinghtml = cleanhtml
+                        #use this method to find the portion of the html that identifies the number of entries and hits
+                        splitceilinghtml = ceilinghtml.split('<div class="hits">')
+                        #check to make sure length is greater than one
+                        if len(splitceilinghtml) > 1:
+                            cleanceilinghtml = splitceilinghtml[1].replace("\n", "").replace("\t", "")
+                            reducedceilinghtml = cleanceilinghtml.split("</div>")
+                            entryandhitvalues = reducedceilinghtml[0]
+                            htmlentriesvalueplus = entryandhitvalues.replace("[", "").split(" ")
+                            htmlentriesvalue = htmlentriesvalueplus[0]
+                            htmlhitsvalue = re.sub("[^0-9]", "", htmlentriesvalueplus[2])
+                            htmlhitsvalue = int(htmlhitsvalue)
+                            desiredhitsceiling = int(desiredhitsceiling)
+                            
+                            #if the current value of hits is greater than the desired maximum number, write this fact in the output then pass control back to the top of the for loop
+                            if htmlhitsvalue > desiredhitsceiling:
+                                out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + "*" + "\t" + "*" + "\t" + "THIS STRING YIELDED " + str(htmlhitsvalue) + " HITS, WHICH IS MORE THAN THE MAXIMUM YOU DESIRED (" + str(desiredhitsceiling) + ")" + "\t" + "*" + "\t" + str(matchingtextgenre) + "\n")
+                                currentloop += 1
+                                continue
+                    
                     #############################
                     # Find Metadata For Matches #
                     #############################
@@ -1994,7 +2392,7 @@ def startapi(event = "<Button>"):
                                 for contextstring in listofhitsincontext[1:]:
                                     splitcontextstring = contextstring.split("</dt>")
                                     cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                    cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                     #write search criteria and metadata to out file
                                     out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                     
@@ -2032,7 +2430,7 @@ def startapi(event = "<Button>"):
                                     for contextstring in listofhitsincontext[1:]:
                                         splitcontextstring = contextstring.split("</dt>")
                                         cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                        cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                         #write search criteria and metadata to out file
                                         out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                         
@@ -2057,7 +2455,7 @@ def startapi(event = "<Button>"):
                             for contextstring in listofhitsincontext[1:]:
                                 splitcontextstring = contextstring.split("</dt>")
                                 cleancontextstring = "..." + str(stripTags(splitcontextstring[0]))
-                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.")
+                                cleanercontextstring = cleancontextstring.replace("&amp;c.", "&c.").replace("\t", "").replace("\n", "")
                                 #write search criteria and metadata to out file
                                 out.write(str(inputname) + "\t" + str(collocateterms) + "\t" + str(authordata) + "\t" + str(texttitle) + "\t" + str(cleanercontextstring) + "\t" + str(publicationdate) + "\t" + str(matchingtextgenre) + "\n")
                                 
@@ -2087,7 +2485,7 @@ def startapi(event = "<Button>"):
 
 #create a start button that allows users to submit selected parameters and run the "startapi" processes
 startbutton = Button(root, text="Start", command = startapi, width = 7)
-startbutton.grid(row = 15, column = 1, sticky = W)
+startbutton.grid(row = 19, column = 1, sticky = W)
 startbutton.bind("<Button>", startapi)
 #startbutton.focus()
 
